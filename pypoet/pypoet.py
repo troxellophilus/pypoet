@@ -147,25 +147,30 @@ class PythonFile(object):
 
 
 def pypi(project_name):
-
-    def append_path(*args):
-        return '/'.join(args)
-
     os.mkdir(project_name)
-    os.mkdir(append_path(project_name, project_name))
-    with open(append_path(project_name, 'setup.py'), 'w') as setup:
-        setup.write('temp')
-    with open(append_path(project_name, 'README.md'), 'w') as readme:
-        readme.write('temp')
-    with open(append_path(project_name, 'MANIFEST.in'), 'w') as manifest:
-        manifest.write('temp')
+    os.mkdir(os.path.join(project_name, project_name))
+    setuppy = PythonFile()
+    setuppy.append(Statement('from setuptools import setup'))
+    setuppy.append(Statement('setup(name=%s)' % project_name))
+    setuppy.write(os.path.join(project_name, 'setup.py'))
+    with open(os.path.join(project_name, 'README.md'), 'w') as readme:
+        readme.write('# %s\n' % project_name)
+        readme.write('### Short description.\n\n'
+                     '## Install\n\n'
+                     '```bash\n$ python setup.py install\n```\n\n'
+                     '## Usage\n\n'
+                     '```python\n>>> \n```\n\n'
+                     '## More Info\n\n'
+                     '<a href="">Link to more info.</a>')
+    with open(os.path.join(project_name, 'MANIFEST.in'), 'w') as manifest:
+        manifest.write('include README.md')
     with open(
-            append_path(project_name, project_name,
-                        '__init__.py'), 'w') as initpy:
+            os.path.join(project_name, project_name,
+                         '__init__.py'), 'w') as initpy:
         initpy.write('__all__ = []\n')
     with open(
-            append_path(project_name, project_name,
-                        project_name + '.py'), 'w') as mainpy:
+            os.path.join(project_name, project_name,
+                         project_name + '.py'), 'w') as mainpy:
         mainpy.write(
             '"""%s."""\n\ndef main():\n    return\n\nif __name__ == "__main__":\n    main()\n'
             % project_name)
