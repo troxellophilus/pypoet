@@ -10,5 +10,5 @@ setup(name="PyPoet",
       author_email="drew.troxell@rosetta.com",
       license="Other/Proprietary License",
       packages=["pypoet"],
-      install_requires=[],
+      install_requires=["yapf"],
       include_package_data=True)
