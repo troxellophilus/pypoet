@@ -15,21 +15,21 @@ class CodeBlock(object):
         raise NotImplementedError()
 
     def add_docstring(self, docstring):
-        assert isinstance(docstring,
-                          DocString), "'docstring' must be of type DocString"
+        if not isinstance(docstring, DocString):
+            raise TypeError("'docstring' must be of type DocString")
         self.docstring = docstring
         return self
 
     def add_statement(self, stmnt):
+        if not isinstance(stmnt, Statement):
+            raise TypeError("'stmnt' must be of type Statement")
         self.statements.append(stmnt)
         return self
 
     def add_codeblock(self, codeblock):
-        assert isinstance(codeblock,
-                          CodeBlock), "'codeblock' must be of type CodeBlock"
-        self.statements.append(codeblock.entry())
-        for stmnt in codeblock.statements:
-            self.statements.append('    ' + stmnt)
+        if not isinstance(codeblock, CodeBlock):
+            raise TypeError("'codeblock' must be of type CodeBlock")
+        self.statements.extend(codeblock.to_lines())
         return self
 
     def to_lines(self):
@@ -54,12 +54,14 @@ class DocString(object):
     def to_lines(self):
         lines = ['"""%s\n' % self.name,]
         if self.description:
-            lines.append(self.description)
-        lines.append('\nArgs:')
-        for arg in self.args:
-            lines.append('    %s ():' % arg)
+            lines.append(self.description + '\n')
+        if self.args:
+            lines.append('Args:')
+            for arg in self.args:
+                lines.append('    %s ():' % arg)
+            lines.append(lines.pop() + '\n')
         if self.returns:
-            lines.append('\nReturns:')
+            lines.append('Returns:')
             lines.append('    %s:' % self.returns)
         lines.append('"""')
         return lines
@@ -129,9 +131,11 @@ class Define(CodeBlock):
 
     def __init__(self, name, *params):
         super().__init__()
+        self.name = name
+        self.params = params
 
     def _entry(self):
-        return "def %s(%s):" % (name, ', '.join(params))
+        return "def %s(%s):" % (self.name, ', '.join(self.params))
 
     def returns(self, what):
         self.return_stmnt = "return %s" % what
@@ -144,7 +148,7 @@ class Class(CodeBlock):
         super().__init__()
         self.name = name
         self.extends = extends if extends else ["object",]
-    
+
     def _entry(self):
         return "class %s(%s):" % (self.name, ', '.join(self.extends))
 
@@ -156,21 +160,22 @@ class PythonFile(object):
         self.codeblocks = []
 
     def add_docstring(self, docstring):
-        assert isinstance(docstring,
-                          DocString), "'docstring' must be of type DocString"
+        if not isinstance(docstring, DocString):
+            raise TypeError("'docstring' must be of type DocString")
         self.docstring = docstring
         return self
 
     def append(self, codeblock):
-        assert isinstance(codeblock,
-                          CodeBlock), "'codeblock' must be of type CodeBlock"
+        if not isinstance(codeblock, CodeBlock):
+            raise TypeError("'codeblock' must be of type CodeBlock")
         self.codeblocks.append(codeblock)
         return self
 
     def write(self, filename):
         with open(filename, 'w') as py_fp:
             if self.docstring:
-                py_fp.write(self.docstring.to_lines())
+                for line in self.docstring.to_lines():
+                    py_fp.write(line)
             else:
                 py_fp.write('"""%s."""' % filename)
             for codeblock in self.codeblocks:
