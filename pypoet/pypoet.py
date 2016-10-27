@@ -6,10 +6,13 @@ import yapf
 class CodeBlock(object):
 
     def __init__(self):
-        self.entry = lambda: None
         self.docstring = None
         self.return_stmnt = None
         self.statements = []
+
+    def _entry(self):
+        """Override"""
+        raise NotImplementedError()
 
     def add_docstring(self, docstring):
         assert isinstance(docstring,
@@ -30,7 +33,7 @@ class CodeBlock(object):
         return self
 
     def to_lines(self):
-        lines = [self.entry(),]
+        lines = [self._entry(),]
         if self.docstring:
             lines.extend('    ' + l for l in self.docstring.to_lines())
         for stmnt in self.statements:
@@ -42,18 +45,22 @@ class CodeBlock(object):
 
 class DocString(object):
 
-    def __init__(self, name, returns, *args):
+    def __init__(self, name, description=None, returns=None, *args):
         self.name = name
+        self.description = description
         self.returns = returns
         self.args = args
 
     def to_lines(self):
-        lines = ['"""%s\n' % self.name, 'Args:']
+        lines = ['"""%s\n' % self.name,]
+        if self.description:
+            lines.append(self.description)
+        lines.append('\nArgs:')
         for arg in self.args:
             lines.append('    %s ():' % arg)
-        lines.append(lines.pop() + '\n')
-        lines.append('Returns:')
-        lines.append('    %s:' % self.returns)
+        if self.returns:
+            lines.append('\nReturns:')
+            lines.append('    %s:' % self.returns)
         lines.append('"""')
         return lines
 
@@ -63,7 +70,9 @@ class Statement(CodeBlock):
     def __init__(self, stmnt):
         super().__init__()
         self.statement = stmnt
-        self.entry = lambda: self.statement
+
+    def _entry(self):
+        return self.statement
 
 
 class If(CodeBlock):
@@ -71,7 +80,9 @@ class If(CodeBlock):
     def __init__(self, expression):
         super().__init__()
         self.expression = expression
-        self.entry = lambda: "if %s:" % self.expression
+
+    def _entry(self):
+        return "if %s:" % self.expression
 
 
 class ElIf(CodeBlock):
@@ -79,14 +90,18 @@ class ElIf(CodeBlock):
     def __init__(self, expression):
         super().__init__()
         self.expression = expression
-        self.entry = lambda: "elif %s:" % self.expression
+
+    def _entry(self):
+        return "elif %s:" % self.expression
 
 
 class Else(CodeBlock):
 
     def __init__(self):
         super().__init__()
-        self.entry = lambda: "else:"
+
+    def _entry(self):
+        return "else:"
 
 
 class ForLoop(CodeBlock):
@@ -95,7 +110,9 @@ class ForLoop(CodeBlock):
         super().__init__()
         self.index = index
         self.iterable = iterable
-        self.entry = lambda: "for %s in %s:" % (self.index, self.iterable)
+
+    def _entry(self):
+        return "for %s in %s:" % (self.index, self.iterable)
 
 
 class WhileLoop(CodeBlock):
@@ -103,14 +120,18 @@ class WhileLoop(CodeBlock):
     def __init__(self, expression):
         super().__init__()
         self.expression = expression
-        self.entry = lambda: "while %s:" % self.expression
+
+    def _entry(self):
+        return "while %s:" % self.expression
 
 
 class Define(CodeBlock):
 
     def __init__(self, name, *params):
         super().__init__()
-        self.entry = lambda: "def %s(%s):" % (name, ', '.join(params))
+
+    def _entry(self):
+        return "def %s(%s):" % (name, ', '.join(params))
 
     def returns(self, what):
         self.return_stmnt = "return %s" % what
@@ -123,13 +144,22 @@ class Class(CodeBlock):
         super().__init__()
         self.name = name
         self.extends = extends if extends else ["object",]
-        self.entry = lambda: "class %s(%s):" % (self.name, ', '.join(self.extends))
+    
+    def _entry(self):
+        return "class %s(%s):" % (self.name, ', '.join(self.extends))
 
 
 class PythonFile(object):
 
     def __init__(self):
+        self.docstring = None
         self.codeblocks = []
+
+    def add_docstring(self, docstring):
+        assert isinstance(docstring,
+                          DocString), "'docstring' must be of type DocString"
+        self.docstring = docstring
+        return self
 
     def append(self, codeblock):
         assert isinstance(codeblock,
@@ -139,7 +169,10 @@ class PythonFile(object):
 
     def write(self, filename):
         with open(filename, 'w') as py_fp:
-            py_fp.write('"""%s."""' % filename)
+            if self.docstring:
+                py_fp.write(self.docstring.to_lines())
+            else:
+                py_fp.write('"""%s."""' % filename)
             for codeblock in self.codeblocks:
                 py_fp.write('\n\n' + '\n'.join(codeblock.to_lines()))
             py_fp.write('\n')
