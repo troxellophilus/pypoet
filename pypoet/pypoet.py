@@ -1,33 +1,31 @@
-"""PyPoet: Python to write Python.
+r"""PyPoet: Python to write Python.
 
 Provides classes to generate Python files. Output formatted with YAPF.
 
 Examples:
     Hello World
-    >>> print_hello = pypoet.Statement("print('Hello world!')")
-    >>> hellopy = pypoet.Pythonfile()
-    >>> hellopy.append(print_hello)
-    >>> hellopy.write('hello.py')
+    >>> import pypoet
+    >>> s = pypoet.Statement('print("HELLO WORLD.")')
+    >>> list(s)
+    ['print("HELLO WORLD.")', '']
+    >>> str(s)
+    'print("HELLO WORLD.")\n'
+    >>> s
+    <pypoet.pypoet.Statement object at 0x0000000000715FD0>
+    >>> 'HELLO' in s
+    True
 
 Drew Troxell
 """
 
-import os
-
 import yapf
 
 
-class CodeBlock(object):
-    """A block of code.
+class FormattedBlock(object):
+    """A block of Python formatted text.
 
-    Don't use this class directly, use the sub-classes.
+    Provides magic methods and interface for CodeBlock and DocString.
     """
-
-    def __init__(self):
-        """Initialize a CodeBlock."""
-        self.docstring = None
-        self.return_stmnt = None
-        self.statements = []
 
     def __str__(self):
         """String representation of a codeblock is the formatted code.
@@ -62,6 +60,30 @@ class CodeBlock(object):
         """
         return any(item in l for l in list(self))
 
+    def __eq__(self, other):
+        """Test equality of two CodeBlocks.
+
+        Returns:
+            bool: True if equal.
+        """
+        return str(self) == str(other)
+
+    def _to_lines(self):
+        raise NotImplementedError()
+
+
+class CodeBlock(FormattedBlock):
+    """A block of code.
+
+    Don't use this class directly, use the sub-classes.
+    """
+
+    def __init__(self):
+        """Initialize a CodeBlock."""
+        self._docstring = None
+        self.return_stmnt = None
+        self.statements = []
+
     def _entry(self):
         """The entry line to this code block.
 
@@ -69,45 +91,34 @@ class CodeBlock(object):
         """
         raise NotImplementedError()
 
-    def add_docstring(self, docstring):
-        """Add a docstring to the code block.
+    @property
+    def docstring(self):
+        """Get this Module's DocString."""
+        return self._docstring
+
+    @docstring.setter
+    def docstring(self, docstring):
+        """Set the docstring for this module.
 
         Args:
-            docstring (DocString): The DocString to add to the block.
+            docstring (DocString): The DocString to add.
 
         Returns:
-            CodeBlock: This codeblock.
+            PythonFile: This PythonFile.
         """
         if not isinstance(docstring, DocString):
             raise TypeError("'docstring' must be of type DocString")
-        self.docstring = docstring
-        return self
+        self._docstring = docstring
 
-    def add_statement(self, stmnt):
-        """Add a statement to the code block.
-
-        Args:
-            stmnt (Statement): The Statement to add to the block.
-
-        Returns:
-            CodeBlock: This codeblock.
-        """
-        if not isinstance(stmnt, Statement):
-            raise TypeError("'stmnt' must be of type Statement")
-        self.statements.append(stmnt)
-        return self
-
-    def add_codeblock(self, codeblock):
-        """Add a codeblock to the code block.
+    def append(self, codeblock):
+        """Append a Statement or CodeBlock to this CodeBlock.
 
         Args:
-            codeblock (CodeBlock): The CodeBlock to add to the block.
+            codeblock (CodeBlock): The item to append to this CodeBlock.
 
         Returns:
-            CodeBlock: This codeblock.
+            CodeBlock: This CodeBlock.
         """
-        if not isinstance(codeblock, CodeBlock):
-            raise TypeError("'codeblock' must be of type CodeBlock")
         self.statements.extend(list(codeblock))
         return self
 
@@ -119,7 +130,7 @@ class CodeBlock(object):
         """
         lines = [self._entry(),]
         if self.docstring:
-            lines.extend('    ' + l for l in self.docstring.to_lines())
+            lines.extend('    ' + l for l in list(self._docstring))
         for stmnt in self.statements:
             lines.append('    ' + stmnt)
         if self.return_stmnt:
@@ -127,7 +138,7 @@ class CodeBlock(object):
         return lines
 
 
-class DocString(object):
+class DocString(FormattedBlock):
     r"""Documentation string.
 
     Example:
@@ -144,22 +155,23 @@ class DocString(object):
             returns (str, optional): The return doc.
             *args (list(str), optional): Any arguments documented in the docstring.
         """
+        super().__init__()
         self.name = name
         self.description = description
         self.returns = returns
         self.args = args
 
-    def to_lines(self):
+    def _to_lines(self):
         """Convert this DocString to a list of lines of code.
 
         Returns:
             list(str): The DocString as a list of code lines.
         """
-        lines = ['"""%s\n' % self.name,]
+        lines = ['"""%s' % self.name,]
         if self.description:
-            lines.append(self.description + '\n')
+            lines.append('\n' + self.description)
         if self.args:
-            lines.append('Args:')
+            lines.append('\nArgs:')
             for arg in self.args:
                 lines.append('    %s ():' % arg)
             lines.append(lines.pop() + '\n')
@@ -351,85 +363,44 @@ class Class(CodeBlock):
         return "class %s(%s):" % (self.name, ', '.join(self.extends))
 
 
-class PythonFile(object):
+class Module(CodeBlock):
     """Object representing a Python module."""
 
-    def __init__(self):
-        """Initialize a PythonFile object."""
-        self.docstring = None
-        self.codeblocks = []
-
-    def add_docstring(self, docstring):
-        """Add a docstring to this module.
+    def __init__(self, name, docstring=None):
+        """Initialize a PythonFile object.
 
         Args:
-            docstring (DocString): The DocString to add.
+            name (str): Name of this module.
+            docstring (DocString, optional): A docstring for this module.
+                If None, a default docstring will be generated.
+        """
+        super().__init__()
+        self.name = name
+        if docstring:
+            self.docstring = docstring
+        else:
+            self.docstring = DocString(name)
+
+    def _entry(self):
+        return ''
+
+    def _to_lines(self):
+        """Convert this CodeBlock to an array of code lines.
 
         Returns:
-            PythonFile: This PythonFile.
+            list(str): The lines of code making up this CodeBlock.
         """
-        if not isinstance(docstring, DocString):
-            raise TypeError("'docstring' must be of type DocString")
-        self.docstring = docstring
-        return self
+        lines = [self._entry(),]
+        if self.docstring:
+            lines.extend(l for l in list(self._docstring))
+        for stmnt in self.statements:
+            lines.append(stmnt)
+        if self.return_stmnt:
+            lines.append(self.return_stmnt)
+        return lines
 
-    def append(self, codeblock):
-        """Append a CodeBlock to this module.
-
-        Args:
-            codeblock (CodeBlock): The CodeBlock to append.
-
-        Returns:
-            PythonFile: This PythonFile.
-        """
-        if not isinstance(codeblock, CodeBlock):
-            raise TypeError("'codeblock' must be of type CodeBlock")
-        self.codeblocks.append(codeblock)
-        return self
-
-    def write(self, filename):
-        """Write this PythonFile out to a file.
-
-        Args:
-            filename (str): Path of the file to write.
-        """
-        with open(filename, 'w') as py_fp:
-            if self.docstring:
-                for line in self.docstring.to_lines():
-                    py_fp.write(line)
-            else:
-                py_fp.write('"""%s."""' % filename)
-            for codeblock in self.codeblocks:
-                py_fp.write('\n\n' + str(codeblock))
-            py_fp.write('\n')
-        yapf.yapf_api.FormatFile(filename, in_place=True)
-
-
-def pypi(project_name):
-    os.mkdir(project_name)
-    os.mkdir(os.path.join(project_name, project_name))
-    setuppy = PythonFile()
-    setuppy.append(Statement('from setuptools import setup'))
-    setuppy.append(Statement('setup(name=%s)' % project_name))
-    setuppy.write(os.path.join(project_name, 'setup.py'))
-    with open(os.path.join(project_name, 'README.md'), 'w') as readme:
-        readme.write('# %s\n' % project_name)
-        readme.write('### Short description.\n\n'
-                     '## Install\n\n'
-                     '```bash\n$ python setup.py install\n```\n\n'
-                     '## Usage\n\n'
-                     '```python\n>>> \n```\n\n'
-                     '## More Info\n\n'
-                     '<a href="">Link to more info.</a>')
-    with open(os.path.join(project_name, 'MANIFEST.in'), 'w') as manifest:
-        manifest.write('include README.md')
-    with open(
-            os.path.join(project_name, project_name,
-                         '__init__.py'), 'w') as initpy:
-        initpy.write('__all__ = []\n')
-    with open(
-            os.path.join(project_name, project_name,
-                         project_name + '.py'), 'w') as mainpy:
-        mainpy.write(
-            '"""%s."""\n\ndef main():\n    return\n\nif __name__ == "__main__":\n    main()\n'
-            % project_name)
+    def write(self):
+        """Write this Module out to a file."""
+        with open(self.name + '.py', 'w') as py_fp:
+            py_fp.write(str(self))
+        yapf.yapf_api.FormatFile(self.name + '.py', in_place=True)

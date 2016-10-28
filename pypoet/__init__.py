@@ -1,4 +1,4 @@
-from .pypoet import CodeBlock, DocString, Statement, If, ElIf, Else, ForLoop, WhileLoop, Define, Class, PythonFile
+from .pypoet import CodeBlock, DocString, Statement, If, ElIf, Else, ForLoop, WhileLoop, Define, Class, Module
 
 __all__ = ['CodeBlock', 'DocString', 'Statement', 'If', 'ElIf', 'Else',
-           'ForLoop', 'WhileLoop', 'Define', 'Class', 'PythonFile']
+           'ForLoop', 'WhileLoop', 'Define', 'Class', 'Module']

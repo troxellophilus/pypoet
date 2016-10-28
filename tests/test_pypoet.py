@@ -18,31 +18,19 @@ class TestCodeBlock(unittest.TestCase):
     def test_add_docstring(self):
         doc = pypoet.DocString(name='docstring')
         cb = pypoet.CodeBlock()
-        cb.add_docstring(doc)
+        cb.docstring = doc
         self.assertEqual(cb.docstring, doc)
         try:
-            cb.add_docstring('not a docstring')
+            cb.docstring = 'not a docstring'
             self.fail('expected a TypeError')
         except TypeError:
             pass
 
-    def test_add_statement(self):
-        stmnt = pypoet.Statement('print("cats")')
-        cb = pypoet.CodeBlock()
-        cb.add_statement(stmnt)
-        self.assertEqual(len(cb.statements), 1)
-        self.assertEqual(cb.statements[0], stmnt)
-        try:
-            cb.add_statement('not a statement')
-            self.fail('expected a TypeError')
-        except TypeError:
-            pass
-
-    def test_add_codeblock(self):
+    def test_append(self):
         cbother = pypoet.CodeBlock()
         cb = pypoet.CodeBlock()
         try:
-            cb.add_codeblock(cbother)
+            cb.append(cbother)
             self.fail('expected NotImplementedError')
         except NotImplementedError:
             pass
@@ -67,16 +55,20 @@ class TestDocString(unittest.TestCase):
             'arg2'
         )
         exp_lines = [
-            '"""docstring\n',
-            'this is a docstring\n',
+            '"""docstring',
+            '',
+            'this is a docstring',
+            '',
             'Args:',
             '    arg1 ():',
-            '    arg2 ():\n',
+            '    arg2 ():',
+            '',
             'Returns:',
             '    str:',
-            '"""'
+            '"""',
+            ''
         ]
-        self.assertEqual(ds.to_lines(), exp_lines)
+        self.assertEqual(list(ds), exp_lines)
 
 
 class TestStatement(unittest.TestCase):
@@ -141,43 +133,29 @@ class TestClass(unittest.TestCase):
 
 class TestPythonFile(unittest.TestCase):
 
-    def test_add_docstring(self):
-        docstr = pypoet.DocString(name='doc', description='sample')
-        pyfile = pypoet.PythonFile()
-        pyfile.add_docstring(docstr)
-        self.assertEqual(pyfile.docstring, docstr)
-        try:
-            pyfile.add_docstring('not a docstring')
-            self.fail('expected a TypeError')
-        except TypeError:
-            pass
+    def test_entry(self):
+        pyfile = pypoet.Module('test')
+        self.assertEqual(pyfile._entry(), '')
 
-    def test_append(self):
-        define = pypoet.Define('count_cats').returns('5')
-        pyfile = pypoet.PythonFile()
-        pyfile.append(define)
-        self.assertEqual(pyfile.codeblocks[0], define)
-        try:
-            pyfile.append('not a codeblock')
-            self.fail('expected a TypeError')
-        except TypeError:
-            pass
+    def test_default_docstring(self):
+        pyfile = pypoet.Module('test')
+        self.assertEqual(pyfile.docstring, pypoet.DocString('test'))
 
     def test_write(self):
-        pyfile = pypoet.PythonFile()
+        pyfile = pypoet.Module('test')
         docstr = pypoet.DocString(name='doc', description='sample')
-        pyfile.add_docstring(docstr)
+        pyfile.docstring = docstr
         stmnt = pypoet.Statement('bar = 5')
         pyfile.append(stmnt)
         define = pypoet.Define('foo').returns('bar')
         pyfile.append(define)
-        pyfile.write('tmp.py')
-        with open('tmp.py', 'r') as fp:
+        pyfile.write()
+        with open('test.py', 'r') as fp:
             lines = list(fp)
-            self.assertEqual(''.join(lines[:4]), '"""doc\nsample\n"""\n\n')
-            self.assertEqual(''.join(lines[4:7]), 'bar = 5\n\n\n')
-            self.assertEqual(''.join(lines[7:]), 'def foo():\n    return bar\n')
-        os.remove('tmp.py')
+            self.assertEqual(''.join(lines[:5]), '"""doc\n\nsample\n"""\n\n')
+            self.assertEqual(''.join(lines[5:8]), 'bar = 5\n\n\n')
+            self.assertEqual(''.join(lines[8:]), 'def foo():\n    return bar\n')
+        os.remove('test.py')
 
 
 if __name__ == '__main__':
