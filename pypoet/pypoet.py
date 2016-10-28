@@ -29,6 +29,39 @@ class CodeBlock(object):
         self.return_stmnt = None
         self.statements = []
 
+    def __str__(self):
+        """String representation of a codeblock is the formatted code.
+
+        Returns:
+            str: The formatted code as a string.
+        """
+        code = '\n'.join(self._to_lines())
+        return yapf.yapf_api.FormatCode(code)[0]
+
+    def __iter__(self):
+        """Convert this CodeBlock to an iterable of code lines.
+
+        Returns:
+            list(str): List of formatted lines of code.
+        """
+        return iter(str(self).split('\n'))
+
+    def __len__(self):
+        """# of lines in a CodeBlock.
+
+        Returns:
+            int: The number of lines in the CodeBlock after formatting.
+        """
+        return len(str(self).split('\n'))
+
+    def __contains__(self, item):
+        """Test membership of a string in a CodeBlock.
+
+        Returns:
+            bool: True if item is present in any line of the formatted CodeBlock.
+        """
+        return any(item in l for l in list(self))
+
     def _entry(self):
         """The entry line to this code block.
 
@@ -75,10 +108,10 @@ class CodeBlock(object):
         """
         if not isinstance(codeblock, CodeBlock):
             raise TypeError("'codeblock' must be of type CodeBlock")
-        self.statements.extend(codeblock.to_lines())
+        self.statements.extend(list(codeblock))
         return self
 
-    def to_lines(self):
+    def _to_lines(self):
         """Convert this CodeBlock to an array of code lines.
 
         Returns:
@@ -367,7 +400,7 @@ class PythonFile(object):
             else:
                 py_fp.write('"""%s."""' % filename)
             for codeblock in self.codeblocks:
-                py_fp.write('\n\n' + '\n'.join(codeblock.to_lines()))
+                py_fp.write('\n\n' + str(codeblock))
             py_fp.write('\n')
         yapf.yapf_api.FormatFile(filename, in_place=True)
 

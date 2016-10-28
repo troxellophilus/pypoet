@@ -50,7 +50,7 @@ class TestCodeBlock(unittest.TestCase):
     def test_to_lines(self):
         cb = pypoet.CodeBlock()
         try:
-            cb.to_lines()
+            cb._to_lines()
             self.fail('expected NotImplementedError')
         except NotImplementedError:
             pass
