@@ -42,7 +42,7 @@ class FormattedBlock(object):
         Returns:
             list(str): List of formatted lines of code.
         """
-        return iter(str(self).split('\n'))
+        return iter(self._to_lines())
 
     def __len__(self):
         """# of lines in a CodeBlock.
@@ -50,7 +50,7 @@ class FormattedBlock(object):
         Returns:
             int: The number of lines in the CodeBlock after formatting.
         """
-        return len(str(self).split('\n'))
+        return len(self._to_lines())
 
     def __contains__(self, item):
         """Test membership of a string in a CodeBlock.
@@ -119,7 +119,7 @@ class CodeBlock(FormattedBlock):
         Returns:
             CodeBlock: This CodeBlock.
         """
-        self.statements.extend(list(codeblock))
+        self.statements.extend(codeblock)
         return self
 
     def _to_lines(self):
