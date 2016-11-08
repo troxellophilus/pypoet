@@ -18,6 +18,7 @@ Examples:
 Drew Troxell
 """
 
+import os.path
 import yapf
 
 
@@ -114,12 +115,18 @@ class CodeBlock(FormattedBlock):
         """Append a Statement or CodeBlock to this CodeBlock.
 
         Args:
-            codeblock (CodeBlock): The item to append to this CodeBlock.
+            codeblock (CodeBlock|str): The item to append to this CodeBlock.
+                If this is a string, it is wrapped in a Statement CodeBlock.
 
         Returns:
             CodeBlock: This CodeBlock.
         """
-        self.statements.extend(codeblock)
+        if isinstance(codeblock, str):
+            self.statements.extend(Statement(codeblock))
+        elif isinstance(codeblock, CodeBlock):
+            self.statements.extend(codeblock)
+        else:
+            raise TypeError("codeblock should be of type CodeBlock or str.")
         return self
 
     def _to_lines(self):
@@ -399,8 +406,17 @@ class Module(CodeBlock):
             lines.append(self.return_stmnt)
         return lines
 
-    def write(self):
-        """Write this Module out to a file."""
-        with open(self.name + '.py', 'w') as py_fp:
+    def write(self, dir_path=None):
+        """Write this Module out to a file.
+
+        Writes to the current working directory or a given directory path.
+
+        Args:
+            dir_path (str): Write this module file to a specific directory.
+        """
+        out_path = self.name + '.py'
+        if dir_path:
+            out_path = os.path.join(dir_path, out_path)
+        with open(out_path, 'w') as py_fp:
             py_fp.write(str(self))
-        yapf.yapf_api.FormatFile(self.name + '.py', in_place=True)
+        yapf.yapf_api.FormatFile(out_path, in_place=True)
